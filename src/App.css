@@ -1,0 +1,38 @@
+ @import "tailwindcss";
+@keyframes fadeInOut {
+  0% { 
+    opacity: 0; 
+    transform: translateY(-20px); 
+  }
+  20% { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+  80% { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+  100% { 
+    opacity: 0; 
+    transform: translateY(-20px); 
+    display: none;
+  }
+}
+
+.wishlist-popup,
+.cart-popup {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 50;
+  background-color: #16a34a; 
+  color: white;
+  padding: 16px 24px;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  animation: fadeInOut 3s forwards;
+}
+
+.cart-popup {
+  background-color: #2563eb; 
+}
