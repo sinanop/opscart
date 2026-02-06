@@ -39,7 +39,7 @@ export default function EditProduct() {
     let products = JSON.parse(localStorage.getItem("products")) || [];
 
     if (isEdit) {
-      // Edit mode: update existing product
+ 
       products = products.map((prod) =>
         prod.id === parseInt(id)
           ? { ...prod, image, name, price, km, fuel }
@@ -47,7 +47,7 @@ export default function EditProduct() {
       );
       toast.success("Car updated successfully!");
     } else {
-      // Add mode: create new product
+    
       const newProduct = {
         id: Date.now(),
         image,

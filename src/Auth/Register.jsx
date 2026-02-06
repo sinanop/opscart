@@ -2,6 +2,9 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate, Link } from "react-router-dom";
+import api from "../api/axios";
+
+import { toast } from "react-toastify";
 
 export default function Register() {
   const [name, setName] = useState("");
@@ -16,43 +19,28 @@ export default function Register() {
 
     if (!name || !email || !password) {
       setError("All fields are required!");
+      toast.error("All fields are required!", { position: "top-center", theme: "dark" });
       return;
     }
 
     try {
+      await api.post('/users/register', { name, email, password });
 
-      const res = await fetch(`http://localhost:5000/users?email=${email}`);
-      const existing = await res.json();
-      if (existing.length > 0) {
-        setError("User already registered!");
-        return;
-      }
-
-    
-      await fetch("http://localhost:5000/users", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password }),
-      });
-
-      alert("Registration successful!");
+      toast.success("Registration successful! Please login.", { position: "top-center", theme: "dark" });
       navigate("/login");
     } catch (err) {
       console.error(err);
-      setError("Something went wrong!");
+      const errorMessage = err.response?.data?.message || "Something went wrong!";
+      setError(errorMessage);
+      toast.error(errorMessage, { position: "top-center", theme: "dark" });
     }
   };
 
   return (
     <div
-      className="flex flex-col items-center justify-center min-h-screen p-6"
-      style={{
-        background: "linear-gradient(135deg, #000000, #1a1a1a, #0d0d0d)",
-        width: "100%",
-        height: "100vh",
-      }}
+      className="flex flex-col items-center justify-center min-h-screen p-6 bg-gradient-to-br from-black via-[#1a1a1a] to-[#0d0d0d] w-full h-screen"
     >
-    
+
       <motion.div
         initial={{ y: -100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -62,7 +50,7 @@ export default function Register() {
         🚗
       </motion.div>
 
-    
+
       <motion.h1
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
@@ -79,37 +67,46 @@ export default function Register() {
         transition={{ duration: 0.5 }}
       >
         <h2 className="text-xl font-bold mb-4 text-center text-orange-400">
-          Create Your Account 🏁
+          Create Your Account
         </h2>
 
         {error && (
           <p className="text-red-500 text-center mb-3 font-semibold">{error}</p>
         )}
 
-        <form onSubmit={handleRegister} className="flex flex-col gap-3">
+        <form onSubmit={handleRegister} className="flex flex-col gap-3" autoComplete="off">
           <input
             type="text"
             placeholder="Full Name"
+            name="new-name"
             className="border border-red-600 bg-black/70 text-white p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
+            autoComplete="off"
+            data-lpignore="true"
           />
           <input
             type="email"
             placeholder="Email"
+            name="new-email"
             className="border border-red-600 bg-black/70 text-white p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
+            autoComplete="off"
+            data-lpignore="true"
           />
           <input
             type="password"
             placeholder="Password"
+            name="new-password"
             className="border border-red-600 bg-black/70 text-white p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
+            autoComplete="new-password"
+            data-lpignore="true"
           />
 
           <motion.button
@@ -118,7 +115,7 @@ export default function Register() {
             className="bg-orange-600 hover:bg-red-600 py-2 rounded-lg font-semibold text-white shadow-lg uppercase tracking-wide mt-2"
             type="submit"
           >
-            Register 🔑
+            Register
           </motion.button>
         </form>
 

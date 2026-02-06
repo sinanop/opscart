@@ -3,29 +3,13 @@ import React from "react";
 
 export default function Footer() {
   return (
-    <footer
-      style={{
-        backgroundColor: "#1f1f1f",
-        color: "#fff",
-        padding: "30px 20px",
-        textAlign: "center",
-        width: "100vw",
-        height: "200px", 
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "center", 
-        alignItems: "center",     
-        fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
-        boxShadow: "0 -2px 10px rgba(0,0,0,0.3)",
-        marginTop: "-40px", 
-      }}
-    >
-      <h2 style={{ margin: "0 0 10px", fontWeight: "600" }}>CarResale</h2>
-      <p style={{ margin: "0 0 10px", fontSize: "14px", color: "#bbb" }}>
+    <footer className="bg-[#1f1f1f] text-white py-8 px-5 text-center w-full flex flex-col justify-center items-center shadow-[0_-2px_10px_rgba(0,0,0,0.3)]">
+      <h2 className="mb-2.5 font-semibold text-xl">Opscart.in</h2>
+      <p className="mb-2.5 text-sm text-[#bbb]">
         Your trusted place to buy & sell cars
       </p>
-      <p style={{ fontSize: "12px", color: "#888" }}>
-        &copy; {new Date().getFullYear()} CarResale. All rights reserved.
+      <p className="text-xs text-[#888]">
+        &copy; {new Date().getFullYear()} Opscart.in. All rights reserved.
       </p>
     </footer>
   );

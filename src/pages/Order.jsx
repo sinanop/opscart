@@ -2,21 +2,16 @@
 
 
 import React, { useEffect, useState } from "react";
+import api from "../api/axios";
 import { toast } from "react-toastify";
 
 export default function Orders() {
   const [orders, setOrders] = useState([]);
   const [user, setUser] = useState(null);
 
-  const API_URL = "http://localhost:5000/orders"; 
-
-  const fetchOrders = async (userId) => {
+  const fetchOrders = async () => {
     try {
-      const res = await fetch(`${API_URL}?userId=${userId}`);
-      if (!res.ok) {
-        throw new Error("Failed to fetch orders");
-      }
-      const data = await res.json();
+      const { data } = await api.get('/orders');
       setOrders(data);
     } catch (error) {
       console.error("Error fetching orders:", error);
@@ -24,30 +19,27 @@ export default function Orders() {
     }
   };
 
+  const cancelOrder = async (orderId) => {
+    if (!window.confirm("Are you sure you want to cancel this order?")) return;
 
-  const handleDelete = async (orderId) => {
+    const toastId = toast.loading("Cancelling order...");
     try {
-      const res = await fetch(`${API_URL}/${orderId}`, { method: "DELETE" });
-      if (!res.ok) {
-        throw new Error("Failed to delete order");
-      }
-      setOrders(orders.filter((order) => order.id !== orderId));
-      toast.success("Order deleted successfully!");
+      await api.put(`/orders/${orderId}/cancel`);
+      toast.update(toastId, { render: "Order cancelled successfully", type: "success", isLoading: false, autoClose: 3000 });
+      fetchOrders();
     } catch (error) {
-      console.error("Error deleting order:", error);
-      toast.error("Failed to delete order");
+      console.error("Error cancelling order:", error);
+      toast.update(toastId, { render: error.response?.data?.message || "Failed to cancel order", type: "error", isLoading: false, autoClose: 3000 });
     }
   };
-
 
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem("loggedInUser"));
     if (storedUser) {
       setUser(storedUser);
-      fetchOrders(storedUser.id);
+      fetchOrders();
     }
   }, []);
-
 
   if (!user) {
     return (
@@ -66,59 +58,75 @@ export default function Orders() {
   }
 
   return (
-    <div className="min-h-screen p-6 bg-gradient-to-br from-black via-gray-900 to-red-950 text-white">
+    <div className="min-h-screen p-6 pb-20 bg-gradient-to-br from-black via-gray-900 to-red-950 text-white">
       <h1 className="text-4xl font-extrabold text-red-500 mb-8 text-center">
-        📦 Your Orders
+        Your Orders
       </h1>
 
       <div className="space-y-6 max-w-4xl mx-auto">
         {orders.map((order) => (
           <div
-            key={order.id} 
+            key={order._id}
             className="bg-black/80 p-6 rounded-2xl shadow-xl border border-red-600"
           >
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-2xl font-bold text-orange-400">
-                Order #{order.id}
+                Order #{order._id}
               </h2>
-              <button
-                onClick={() => handleDelete(order.id)}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm transition"
-              >
-                Delete
-              </button>
+              <span className={`px-4 py-1 rounded-full text-sm capitalize font-bold ${order.status === 'delivered' ? 'bg-green-600 text-white' :
+                order.status === 'cancelled' ? 'bg-red-600 text-white' :
+                  'bg-yellow-600 text-white'
+                }`}>
+                {order.status}
+              </span>
             </div>
 
-            <p className="text-gray-300 mb-1">👤 Buyer: {order.buyer}</p>
-            <p className="text-gray-300 mb-1">📞 Phone: {order.phone}</p>
-            <p className="text-gray-400 mb-3">📅 Date: {order.date}</p>
-            <p className="text-gray-300 mb-1">🏠 Address: {order.address}</p>
+            <p className="text-gray-300 mb-1">👤 Buyer: {order.userId ? order.userId.name : 'Unknown'}</p>
+            <p className="text-gray-300 mb-1">📞 Phone: {order.address?.phone || order.userId?.phoneNumber || 'N/A'}</p>
+            <p className="text-gray-400 mb-3">📅 Date: {new Date(order.createdAt).toLocaleDateString()}</p>
+            <div className="text-gray-300 mb-3">
+              <p>🏠 Address:</p>
+              <p className="ml-4 text-sm text-gray-400">
+                {typeof order.address === 'object' ? (
+                  <>
+                    {order.address.line || ''} <br />
+                    {order.address.city || ''}, {order.address.state || ''} - {order.address.pincode || ''}
+                  </>
+                ) : order.address}
+              </p>
+            </div>
 
-            <ul className="mb-4 space-y-2">
-              {order.items.map((item, index) => (
+            <ul className="mb-4 space-y-2 bg-gray-900/50 p-4 rounded-xl">
+              {order.products.map((item, index) => (
                 <li
-                  key={`${order.id}-${index}`} 
-                  className="flex justify-between border-b border-gray-700 pb-1"
+                  key={`${order._id}-${index}`}
+                  className="flex justify-between border-b border-gray-700 pb-2 last:border-0"
                 >
-                  <div>
-                    <span>
-                      {item.name} × {item.quantity}
-                    </span>
-               
-                    {item.brand && (
-                      <div className="text-xs text-gray-500">
-                        Brand: {item.brand}
-                      </div>
-                    )}
+                  <div className="flex items-center gap-4">
+                    {item.productId?.image && <img src={item.productId.image} alt="" className="w-12 h-12 rounded object-cover" />}
+                    <div>
+                      <p className="font-semibold text-white">{item.productId ? item.productId.title || item.productId.name : 'Product Unavailable'}</p>
+                      <p className="text-xs text-gray-500">Qty: {item.quantity}</p>
+                    </div>
                   </div>
-                  <span>₹{Number(item.price) * Number(item.quantity)}</span>
+                  <span className="font-bold text-gray-200">₹{Number(item.price) * Number(item.quantity)}</span>
                 </li>
               ))}
             </ul>
 
-            <h3 className="text-lg font-bold text-green-400">
-              Total Paid: ₹{order.total}
-            </h3>
+            <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-700">
+              <h3 className="text-xl font-bold text-green-400">
+                Total Paid: ₹{order.totalAmount}
+              </h3>
+              {order.status === 'pending' && (
+                <button
+                  onClick={() => cancelOrder(order._id)}
+                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors duration-200 font-semibold"
+                >
+                  Cancel Order
+                </button>
+              )}
+            </div>
           </div>
         ))}
       </div>

@@ -1,8 +1,13 @@
 
 
+
+
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate, Link } from "react-router-dom";
+import api from "../api/axios";
+
+import { toast } from "react-toastify";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -15,53 +20,35 @@ export default function Login() {
     setError("");
 
     try {
-      const res = await fetch(
-        `http://localhost:5000/users?email=${email}&password=${password}`
-      );
-      const users = await res.json();
+      const { data } = await api.post('/users/login', { email, password });
 
-      if (users.length === 0) {
-        setError("Invalid email or password!");
+      const userData = {
+        id: data._id,
+        ...data,
+        isAdmin: data.role === 'admin'
+      };
+
+      const previousUser = JSON.parse(localStorage.getItem("loggedInUser"));
+      if (previousUser && previousUser.id !== userData.id) {
+        localStorage.removeItem(`cart_${previousUser.id}`);
+        localStorage.removeItem(`wishlist_${previousUser.id}`);
+      }
+
+      localStorage.setItem("loggedInUser", JSON.stringify(userData));
+      window.dispatchEvent(new Event("userChanged"));
+
+      toast.success("Login successful!", { position: "top-center", theme: "dark" });
+
+      if (userData.isAdmin) {
+        navigate("/admin/dashboard", { replace: true });
       } else {
-        const user = users[0];
-
-        if (user.blocked) {
-          setError("Your account is blocked.");
-          return;
-        }
-
-        if (user.deleted) {
-          setError("Your account is inactive.");
-          return;
-        }
-
-        const previousUser = JSON.parse(localStorage.getItem("loggedInUser"));
-
-        if (previousUser) {
-          localStorage.removeItem(`cart_${previousUser.id}`);
-          localStorage.removeItem(`wishlist_${previousUser.id}`);
-        }
-
-        const isAdmin = user.role === "admin";
-        const userData = {
-          ...user,
-          isAdmin: isAdmin
-        };
-
-        localStorage.setItem("loggedInUser", JSON.stringify(userData));
-        window.dispatchEvent(new Event("userChanged"));
-
-        alert("Login successful!");
-
-        if (isAdmin) {
-          navigate("/admin/dashboard", { replace: true });
-        } else {
-          navigate("/home", { replace: true });
-        }
+        navigate("/home", { replace: true });
       }
     } catch (err) {
       console.error(err);
-      setError("Something went wrong!");
+      const errorMessage = err.response?.data?.message || "Invalid email or password!";
+      setError(errorMessage);
+      toast.error(errorMessage, { position: "top-center", theme: "dark" });
     }
 
     setEmail("");
@@ -69,14 +56,7 @@ export default function Login() {
   };
 
   return (
-    <div
-      className="flex flex-col items-center justify-center min-h-screen p-6"
-      style={{
-        background: "linear-gradient(135deg, #000000, #1a1a1a, #0d0d0d)",
-        height: "100vh",
-        width: "100%",
-      }}
-    >
+    <div className="flex flex-col items-center justify-center min-h-screen p-6 bg-black/90 text-white">
       <motion.div
         initial={{ x: -200, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
@@ -96,7 +76,7 @@ export default function Login() {
       </motion.h1>
 
       <p className="text-gray-300 text-lg mb-8 text-center font-semibold drop-shadow-md">
-        Drive your dream <span className="text-orange-400">Used Car</span> today 🚗🔥
+        Drive your dream <span className="text-orange-400">Used Car</span> today
       </p>
 
       <motion.div
@@ -106,7 +86,7 @@ export default function Login() {
         transition={{ duration: 0.5 }}
       >
         <h2 className="text-xl font-bold mb-4 text-center text-orange-400">
-          Login to your Garage 🏁
+          Login to your Garage 
         </h2>
 
         {error && (
@@ -151,7 +131,7 @@ export default function Login() {
             className="bg-red-600 hover:bg-orange-600 text-white py-2 rounded-lg font-semibold shadow-lg uppercase tracking-wide"
             type="submit"
           >
-            Login 🚦
+            Login
           </motion.button>
         </form>
 

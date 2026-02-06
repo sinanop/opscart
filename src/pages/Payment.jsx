@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from "react";  
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import api from "../api/axios";
 import { motion } from "framer-motion";
 import { toast } from "react-toastify";
 
@@ -13,26 +14,34 @@ export default function Payment() {
   const [paymentMethod, setPaymentMethod] = useState("card");
   const [user, setUser] = useState(null);
 
-  const API_URL = "http://localhost:5000/orders";
-
   useEffect(() => {
-    const loggedInUser = JSON.parse(localStorage.getItem("loggedInUser")); 
+    const loggedInUser = JSON.parse(localStorage.getItem("loggedInUser"));
     if (!loggedInUser) {
       navigate("/login");
       return;
     }
     setUser(loggedInUser);
-    const storedCart =
-      JSON.parse(localStorage.getItem(`cart_${loggedInUser.id}`)) || [];
-    const cartWithNumbers = storedCart.map((item) => ({
-      ...item,
-      price: Number(item.price) || 0,
-      quantity: Number(item.quantity) || 1,
-    }));
-    setCart(cartWithNumbers);
     if (loggedInUser.name) setName(loggedInUser.name);
     if (loggedInUser.email) setEmail(loggedInUser.email);
+
+    fetchCart();
   }, [navigate]);
+
+  const fetchCart = async () => {
+    try {
+      const { data } = await api.get('/cart');
+      if (data && data.products) {
+        const mappedCart = data.products.map(item => ({
+          ...item.productId,
+          price: Number(item.productId.price),
+          quantity: Number(item.quantity)
+        }));
+        setCart(mappedCart);
+      }
+    } catch (error) {
+      console.error("Error fetching cart for payment", error);
+    }
+  };
 
   const totalAmount = cart.reduce(
     (sum, item) => sum + Number(item.price) * Number(item.quantity),
@@ -45,33 +54,22 @@ export default function Payment() {
       alert("Please fill in all required details!");
       return;
     }
-    if (!user) return;
 
-    const newOrder = {
-      userId: user.id,
-      items: cart,
-      total: totalAmount,
-      buyer: name,
-      address,
-      phone,
-      email,
-      paymentMethod,
-      date: new Date().toLocaleString(),
+    
+    const orderData = {
+      address: {
+        line: address,
+        name,
+        phone,
+        email
+      },
+      paymentId: paymentMethod === 'cod' ? 'COD' : 'DUMMY_CARD_ID',
     };
 
     try {
-      const res = await fetch(API_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(newOrder),
-      });
-
-      if (!res.ok) throw new Error("Failed to place order");
+      await api.post('/orders', orderData);
 
       toast.success("Order placed successfully!");
-      localStorage.removeItem(`cart_${user.id}`);
       navigate("/orders");
     } catch (error) {
       console.error("Error placing order:", error);
@@ -89,7 +87,7 @@ export default function Payment() {
           className="text-center"
         >
           <h2 className="text-3xl font-extrabold text-red-500 drop-shadow-xl mb-4">
-            🛒 Your cart is empty!
+            Your cart is empty!
           </h2>
           <motion.button
             whileHover={{ scale: 1.05 }}
@@ -118,7 +116,7 @@ export default function Payment() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
         >
-          💳 Payment Details
+          Payment Details
         </motion.h1>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -228,13 +226,12 @@ export default function Payment() {
                   />
                   <label
                     htmlFor="card"
-                    className={`block p-4 rounded-lg cursor-pointer text-center border-2 ${
-                      paymentMethod === "card"
+                    className={`block p-4 rounded-lg cursor-pointer text-center border-2 ${paymentMethod === "card"
                         ? "border-red-500 bg-red-500/20"
                         : "border-gray-700 bg-gray-800"
-                    }`}
+                      }`}
                   >
-                    💳 Credit/Debit Card
+                    Credit/Debit Card
                   </label>
                 </motion.div>
                 <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
@@ -249,13 +246,12 @@ export default function Payment() {
                   />
                   <label
                     htmlFor="cod"
-                    className={`block p-4 rounded-lg cursor-pointer text-center border-2 ${
-                      paymentMethod === "cod"
+                    className={`block p-4 rounded-lg cursor-pointer text-center border-2 ${paymentMethod === "cod"
                         ? "border-red-500 bg-red-500/20"
                         : "border-gray-700 bg-gray-800"
-                    }`}
+                      }`}
                   >
-                    📦 Cash on Delivery
+                    Cash on Delivery
                   </label>
                 </motion.div>
               </div>
@@ -266,7 +262,7 @@ export default function Payment() {
               whileTap={{ scale: 0.97 }}
               className="md:col-span-2 bg-green-600 hover:bg-green-700 p-4 rounded-lg font-bold text-lg shadow-lg transition mt-6"
             >
-              {paymentMethod === "cod" ? "📦 Confirm Order" : "💳 Pay Now"} - ₹{totalAmount}
+              {paymentMethod === "cod" ? " Confirm Order" : " Pay Now"} - ₹{totalAmount}
             </motion.button>
           </motion.form>
         </div>

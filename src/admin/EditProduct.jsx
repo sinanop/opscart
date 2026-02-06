@@ -1,13 +1,12 @@
 
 
-
-
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
+import api from "../api/axios";
 
 export default function EditProduct() {
-  const { id } = useParams(); // id may be undefined in Add mode
+  const { id } = useParams();
   const navigate = useNavigate();
 
   const [image, setImage] = useState("");
@@ -15,26 +14,31 @@ export default function EditProduct() {
   const [price, setPrice] = useState("");
   const [km, setKm] = useState("");
   const [fuel, setFuel] = useState("");
+  const [stock, setStock] = useState(1);
   const [isEdit, setIsEdit] = useState(false);
 
   useEffect(() => {
-    const products = JSON.parse(localStorage.getItem("products")) || [];
-    if (id) {
-      const existingProduct = products.find(
-        (prod) => String(prod.id) === String(id)
-      );
-      if (existingProduct) {
-        setImage(existingProduct.image);
-        setName(existingProduct.name);
-        setPrice(existingProduct.price);
-        setKm(existingProduct.km);
-        setFuel(existingProduct.fuel);
-        setIsEdit(true);
-      }
+    if (id && id !== 'new') {
+      const fetchProduct = async () => {
+        try {
+          const { data } = await api.get(`/products/${id}`);
+          setImage(data.image);
+          setName(data.name);
+          setPrice(data.price);
+          setKm(data.km);
+          setFuel(data.fuel);
+          setStock(data.stock !== undefined ? data.stock : 1);
+          setIsEdit(true);
+        } catch (error) {
+          console.error(error);
+          toast.error("Failed to load product details");
+        }
+      };
+      fetchProduct();
     }
   }, [id]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!image || !name || !price || !km || !fuel) {
@@ -42,34 +46,28 @@ export default function EditProduct() {
       return;
     }
 
-    const products = JSON.parse(localStorage.getItem("products")) || [];
+    const productData = {
+      image,
+      name,
+      price: parseInt(price),
+      km,
+      fuel,
+      stock,
+    };
 
-    if (isEdit) {
-      // ✅ Edit mode: update the existing product
-      const updatedProducts = products.map((prod) =>
-        String(prod.id) === String(id)
-          ? { ...prod, image, name, price, km, fuel }
-          : prod
-      );
-      localStorage.setItem("products", JSON.stringify(updatedProducts));
-      toast.success("Car updated successfully!");
-    } else {
-      // ✅ Add mode: create a new product
-      const newProduct = {
-        id: Date.now(), // unique id
-        image,
-        name,
-        price,
-        km,
-        fuel,
-      };
-      const updatedProducts = [...products, newProduct];
-      localStorage.setItem("products", JSON.stringify(updatedProducts));
-      toast.success("Car added successfully!");
+    try {
+      if (isEdit) {
+        await api.put(`/products/${id}`, productData);
+        toast.success("Car updated successfully!");
+      } else {
+        await api.post('/products', productData);
+        toast.success("Car added successfully!");
+      }
+      navigate("/admin/products");
+    } catch (error) {
+      console.error(error);
+      toast.error("An error occurred while saving the product");
     }
-
-    window.dispatchEvent(new Event("customStorageChange"));
-    navigate("/admin/products");
   };
 
   return (
@@ -87,6 +85,7 @@ export default function EditProduct() {
               onChange={(e) => setImage(e.target.value)}
               placeholder="Enter image URL"
               className="w-full p-3 rounded-lg bg-gray-800 border border-gray-700"
+              required
             />
           </div>
           <div>
@@ -97,6 +96,7 @@ export default function EditProduct() {
               onChange={(e) => setName(e.target.value)}
               placeholder="Enter car name"
               className="w-full p-3 rounded-lg bg-gray-800 border border-gray-700"
+              required
             />
           </div>
           <div>
@@ -107,6 +107,7 @@ export default function EditProduct() {
               onChange={(e) => setPrice(e.target.value)}
               placeholder="Enter price"
               className="w-full p-3 rounded-lg bg-gray-800 border border-gray-700"
+              required
             />
           </div>
           <div>
@@ -117,6 +118,7 @@ export default function EditProduct() {
               onChange={(e) => setKm(e.target.value)}
               placeholder="Enter kilometers driven"
               className="w-full p-3 rounded-lg bg-gray-800 border border-gray-700"
+              required
             />
           </div>
           <div>
@@ -127,7 +129,27 @@ export default function EditProduct() {
               onChange={(e) => setFuel(e.target.value)}
               placeholder="Enter fuel type"
               className="w-full p-3 rounded-lg bg-gray-800 border border-gray-700"
+              required
             />
+          </div>
+
+          <div>
+            <label className="block mb-2">Availability</label>
+            <div className="flex gap-4">
+              <button
+                type="button"
+                onClick={() => setStock(prev => prev > 0 ? 0 : 1)}
+                className={`px-4 py-2 rounded font-bold transition w-full ${stock > 0
+                    ? 'bg-red-600 hover:bg-red-700 text-white'
+                    : 'bg-green-600 hover:bg-green-700 text-white'
+                  }`}
+              >
+                {stock > 0 ? 'Set as Sold Out' : 'Set as Available'}
+              </button>
+            </div>
+            <p className="text-gray-400 text-sm mt-1">
+              Current Status: <span className={stock > 0 ? "text-green-500" : "text-red-500"}>{stock > 0 ? "In Stock" : "Sold Out"}</span>
+            </p>
           </div>
           <button
             type="submit"
@@ -140,3 +162,5 @@ export default function EditProduct() {
     </div>
   );
 }
+
+

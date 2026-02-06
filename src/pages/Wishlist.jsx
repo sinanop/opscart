@@ -1,5 +1,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
+import api from "../api/axios";
+import { toast } from "react-toastify";
 
 const WishlistContext = createContext();
 
@@ -12,58 +14,72 @@ export function WishlistProvider({ children }) {
   const [popupType, setPopupType] = useState("");
 
   useEffect(() => {
-    const loadUserWishlist = () => {
+    const loadUserWishlist = async () => {
       const loggedInUser = JSON.parse(localStorage.getItem("loggedInUser"));
       setUser(loggedInUser);
 
       if (loggedInUser) {
-        const storedWishlist = JSON.parse(localStorage.getItem(`wishlist_${loggedInUser.id}`)) || [];
-        setWishlist(storedWishlist);
+        try {
+          const { data } = await api.get('/wishlist');
+         
+          setWishlist(data.products || []);
+        } catch (error) {
+          console.error("Error loading wishlist", error);
+          setWishlist([]);
+        }
       } else {
         setWishlist([]);
       }
     };
 
     loadUserWishlist();
-
     window.addEventListener("userChanged", loadUserWishlist);
     return () => {
       window.removeEventListener("userChanged", loadUserWishlist);
     };
   }, []);
 
-  useEffect(() => {
-    if (user) {
-      localStorage.setItem(`wishlist_${user.id}`, JSON.stringify(wishlist));
-    }
-  }, [wishlist, user]);
+  const addToWishlist = async (product) => {
+    try {
+      const response = await api.post('/wishlist', { productId: product._id || product.id });
 
-  const addToWishlist = (product) => {
-    if (!wishlist.some((item) => item.id === product.id)) {
-      const updated = [...wishlist, product];
-      setWishlist(updated);
+  
+      if (response.data && response.data.products) {
+        setWishlist(response.data.products);
+      }
 
       setPopupProduct(product);
       setPopupType("add");
       setShowPopup(true);
-      setTimeout(() => {
-        setShowPopup(false);
-      }, 3000);
+      setTimeout(() => setShowPopup(false), 3000);
+    } catch (error) {
+      console.error("Error adding to wishlist", error);
+      toast.error("Could not add to wishlist");
     }
   };
 
-  const removeFromWishlist = (id) => {
-    const product = wishlist.find((item) => item.id === id);
-    const updated = wishlist.filter((item) => item.id !== id);
-    setWishlist(updated);
+  const removeFromWishlist = async (id) => {
+    try {
+      const response = await api.delete(`/wishlist/${id}`);
 
-    if (product) {
-      setPopupProduct(product);
-      setPopupType("remove");
-      setShowPopup(true);
-      setTimeout(() => {
-        setShowPopup(false);
-      }, 3000);
+      const product = wishlist.find((item) => item.id === id || item._id === id);
+
+      if (response.data && response.data.products) {
+        setWishlist(response.data.products);
+      } else {
+        const updated = wishlist.filter((item) => item.id !== id && item._id !== id);
+        setWishlist(updated);
+      }
+
+      if (product) {
+        setPopupProduct(product);
+        setPopupType("remove");
+        setShowPopup(true);
+        setTimeout(() => setShowPopup(false), 3000);
+      }
+    } catch (error) {
+      console.error("Error removing from wishlist", error);
+      toast.error("Could not remove from wishlist");
     }
   };
 
@@ -110,40 +126,18 @@ export default function Wishlist() {
   const [cart, setCart] = useState([]);
 
   useEffect(() => {
-    const loadUserCart = () => {
-      const loggedInUser = JSON.parse(localStorage.getItem("loggedInUser"));
-      setUser(loggedInUser);
-
-      if (loggedInUser) {
-        const storedCart = JSON.parse(localStorage.getItem(`cart_${loggedInUser.id}`)) || [];
-        setCart(storedCart);
-      } else {
-        setCart([]);
-      }
-    };
-
-    loadUserCart();
-
-    window.addEventListener("userChanged", loadUserCart);
-    return () => {
-      window.removeEventListener("userChanged", loadUserCart);
-    };
+    const loggedInUser = JSON.parse(localStorage.getItem("loggedInUser"));
+    setUser(loggedInUser);
   }, []);
 
-  useEffect(() => {
-    if (user) {
-      localStorage.setItem(`cart_${user.id}`, JSON.stringify(cart));
-    }
-  }, [cart, user]);
-
-  const addToCart = (product) => {
-    if (!cart.some((item) => item.id === product.id)) {
-      const updatedCart = [...cart, { ...product, quantity: 1 }];
-      setCart(updatedCart);
-      localStorage.setItem(`cart_${user.id}`, JSON.stringify(updatedCart));
-
-     
-      window.dispatchEvent(new Event("cartUpdated"));
+  const addToCart = async (product) => {
+    try {
+      await api.post('/cart', { productId: product._id || product.id, quantity: 1 });
+      toast.success("Added to cart!");
+  
+    } catch (error) {
+      console.error("Error adding to cart", error);
+      toast.error("Failed to add to cart");
     }
   };
 
@@ -151,7 +145,7 @@ export default function Wishlist() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-black via-gray-900 to-red-950">
         <h2 className="text-3xl font-extrabold tracking-wide text-red-500 drop-shadow-lg">
-          🚗 Your Wishlist is Empty
+          Your Wishlist is Empty
         </h2>
       </div>
     );
@@ -165,36 +159,39 @@ export default function Wishlist() {
           Your Wishlist
         </h1>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {wishlist.map((item) => (
-            <div
-              key={item.id}
-              className="bg-gradient-to-br from-black/90 to-gray-900 border border-red-700 rounded-xl shadow-lg p-4 text-white"
-            >
-              <img
-                src={item.image}
-                alt={item.name}
-                className="w-full h-48 object-cover rounded-lg mb-4"
-              />
-              <h2 className="text-xl font-bold text-red-400">{item.name}</h2>
-              <p className="text-gray-300">Price: ₹{item.price}</p>
-              <p className="text-gray-300">KM: {item.km}</p>
-              <p className="text-gray-300">Fuel: {item.fuel}</p>
-              <div className="flex gap-3 mt-4">
-                <button
-                  onClick={() => removeFromWishlist(item.id)}
-                  className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg w-full font-semibold transition duration-300"
-                >
-                  Remove ❌
-                </button>
-                <button
-                  onClick={() => addToCart(item)}
-                  className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg w-full font-semibold transition duration-300"
-                >
-                  Add to Cart ✅
-                </button>
+          {wishlist.map((item) => {
+            if (!item) return null;
+            return (
+              <div
+                key={item._id || item.id}
+                className="bg-gradient-to-br from-black/90 to-gray-900 border border-red-700 rounded-xl shadow-lg p-4 text-white"
+              >
+                <img
+                  src={item.image}
+                  alt={item.name}
+                  className="w-full h-48 object-cover rounded-lg mb-4"
+                />
+                <h2 className="text-xl font-bold text-red-400">{item.name}</h2>
+                <p className="text-gray-300">Price: ₹{item.price}</p>
+                <p className="text-gray-300">KM: {item.km}</p>
+                <p className="text-gray-300">Fuel: {item.fuel}</p>
+                <div className="flex gap-3 mt-4">
+                  <button
+                    onClick={() => removeFromWishlist(item._id || item.id)}
+                    className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg w-full font-semibold transition duration-300"
+                  >
+                    Remove
+                  </button>
+                  <button
+                    onClick={() => addToCart(item)}
+                    className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg w-full font-semibold transition duration-300"
+                  >
+                    Add to Cart
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
       <WishlistPopup />
@@ -202,4 +199,19 @@ export default function Wishlist() {
   );
 }
 
-export const useWishlist = () => useContext(WishlistContext);
+export const useWishlist = () => {
+  const context = useContext(WishlistContext);
+  if (!context) {
+
+    return {
+      wishlist: [],
+      addToWishlist: () => console.warn("WishlistProvider missing"),
+      removeFromWishlist: () => console.warn("WishlistProvider missing"),
+      showPopup: false,
+      popupProduct: null,
+      popupType: "",
+      setShowPopup: () => { },
+    };
+  }
+  return context;
+};

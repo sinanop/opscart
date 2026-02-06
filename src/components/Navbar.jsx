@@ -1,35 +1,27 @@
-
 import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-
 export default function Navbar() {
   const navLinks = ["Home", "Products", "Wishlist", "Cart", "Orders"];
   const [user, setUser] = useState(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const navigate = useNavigate();
-
   useEffect(() => {
     const checkUser = () => {
       const loggedInUser = JSON.parse(localStorage.getItem("loggedInUser"));
       setUser(loggedInUser);
     };
-
     checkUser();
-
     window.addEventListener("storage", checkUser);
-
     const handleUserChange = () => checkUser();
     window.addEventListener("userChanged", handleUserChange);
-
     window.addEventListener("customStorageChange", checkUser);
-
     return () => {
       window.removeEventListener("storage", checkUser);
       window.removeEventListener("userChanged", handleUserChange);
       window.removeEventListener("customStorageChange", checkUser);
     };
   }, []);
-
   const handleLogout = () => {
     if (user) {
       localStorage.removeItem("loggedInUser");
@@ -41,145 +33,101 @@ export default function Navbar() {
     window.dispatchEvent(new Event("userChanged"));
     navigate("/register");
     setIsMenuOpen(false);
+    setIsProfileOpen(false);
   };
-
   const animateText = (text) =>
     text.split("").map((char, index) => (
       <span key={index} style={{ display: "inline-block" }}>
         {char}
       </span>
     ));
+  const toggleProfileMenu = () => {
+    setIsProfileOpen(!isProfileOpen);
+  };
 
   return (
-    <nav
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        padding: "12px 24px",
-        background: "#2b2b2bff",
-        boxShadow: "0 2px 6px rgba(0,0,0,0.5)",
-        position: "sticky",
-        top: 0,
-        zIndex: 100,
-      }}
-    >
-      <Link to="/" style={{ textDecoration: "none", display: "flex", alignItems: "center" }}>
-        <h2
-          style={{
-            fontSize: "30px",
-            margin: 0,
-            color: "#ff2d2d",
-            fontWeight: "bold",
-          }}
-        >
+    <nav className="flex justify-between items-center px-6 py-3 bg-[#2b2b2b] shadow-md sticky top-0 z-50">
+      <Link to="/" className="no-underline flex items-center">
+        <h2 className="text-3xl m-0 text-[#ff2d2d] font-bold">
           Opscart.in
         </h2>
       </Link>
       <button
         onClick={() => setIsMenuOpen(!isMenuOpen)}
-        style={{
-          display: "none",
-          background: "transparent",
-          border: "none",
-          color: "#fff",
-          fontSize: "24px",
-          cursor: "pointer",
-        }}
-        className="mobile-menu-btn"
+        className="md:hidden bg-transparent border-none text-white text-2xl cursor-pointer"
       >
         {isMenuOpen ? "✕" : "☰"}
       </button>
-
-      <div className="desktop-nav" style={{ display: "flex", alignItems: "center", gap: "24px" }}>
+      <div className="hidden md:flex items-center gap-6">
         {navLinks.map((link, index) => (
-          <Link key={index} to={`/${link.toLowerCase()}`} style={navLinkStyle} className="nav-link">
+          <Link key={index} to={`/${link.toLowerCase()}`} className="text-white no-underline font-medium text-base cursor-pointer hover:text-[#ff2d2d] transition-colors duration-300">
             {animateText(link)}
           </Link>
         ))}
-
         {user ? (
-          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-            <span style={{ color: "#fff", fontSize: "14px" }} className="welcome-text">
-              Welcome, {user.name || user.email}
-            </span>
-            <button
-              onClick={handleLogout}
-              style={loginButtonStyle}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = "#ff2d2d";
-                e.currentTarget.style.color = "#fff";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = "transparent";
-                e.currentTarget.style.color = "#ff2d2d";
-              }}
+          <div className="relative flex items-center gap-4">
+            <div
+              onClick={toggleProfileMenu}
+              className="w-9 h-9 rounded-full bg-[#ff2d2d] text-white flex justify-center items-center font-bold cursor-pointer overflow-hidden"
             >
-              Logout
-            </button>
+              {user.name ? user.name.charAt(0).toUpperCase() : "U"}
+            </div>
+            {isProfileOpen && (
+              <div className="absolute top-[calc(100%+8px)] right-0 bg-[#2b2b2b] border border-[#444] rounded-lg overflow-hidden z-[100] w-48">
+                <div className="px-5 py-2.5 border-b border-[#444] text-white">
+                  Hi, {user.name || user.email}
+                </div>
+                <button
+                  onClick={() => { navigate("/profile"); setIsProfileOpen(false); }}
+                  className="w-full text-left px-5 py-2.5 bg-transparent text-white border-none cursor-pointer hover:bg-[#444] transition-colors duration-300"
+                >
+                  My Profile
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="w-full text-left px-5 py-2.5 bg-transparent text-[#ff2d2d] border-none cursor-pointer hover:bg-[#444] transition-colors duration-300"
+                >
+                  Logout
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           <Link
             to="/login"
-            style={loginButtonStyle}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = "#ff2d2d";
-              e.currentTarget.style.color = "#fff";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = "transparent";
-              e.currentTarget.style.color = "#ff2d2d";
-            }}
+            className="px-4 py-2 bg-transparent text-[#ff2d2d] border-2 border-[#ff2d2d] rounded-md no-underline font-medium text-base transition-colors duration-300 hover:bg-[#ff2d2d] hover:text-white"
           >
             Login
           </Link>
         )}
       </div>
-
       {isMenuOpen && (
-        <div
-          className="mobile-nav"
-          style={{
-            position: "absolute",
-            top: "100%",
-            left: 0,
-            right: 0,
-            background: "#2b2b2bff",
-            padding: "20px",
-            boxShadow: "0 4px 6px rgba(0,0,0,0.5)",
-            display: "flex",
-            flexDirection: "column",
-            gap: "15px",
-            zIndex: 99,
-          }}
-        >
+        <div className="md:hidden absolute top-full left-0 right-0 bg-[#2b2b2b] p-5 shadow-lg flex flex-col gap-4 z-[99]">
           {navLinks.map((link, index) => (
             <Link
               key={index}
               to={`/${link.toLowerCase()}`}
-              style={{ ...navLinkStyle, padding: "10px 0" }}
+              className="text-white no-underline font-medium text-base py-2.5 hover:text-[#ff2d2d] transition-colors duration-300"
               onClick={() => setIsMenuOpen(false)}
             >
               {animateText(link)}
             </Link>
           ))}
-
           {user ? (
             <>
-              <div
-                style={{
-                  color: "#fff",
-                  fontSize: "14px",
-                  padding: "10px 0",
-                  borderTop: "1px solid #444",
-                  marginTop: "10px",
-                }}
-              >
+              <div className="text-white text-sm py-2.5 border-t border-[#444] mt-2.5">
                 Welcome, {user.name || user.email}
               </div>
+              <Link
+                to="/profile"
+                className="text-white no-underline font-medium text-base py-2.5 border-b border-[#333] hover:text-[#ff2d2d] transition-colors duration-300"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                My Profile
+              </Link>
               <button
                 onClick={handleLogout}
-                style={{ ...loginButtonStyle, width: "100%", textAlign: "center" }}
+                className="w-full text-center px-4 py-2 bg-transparent text-[#ff2d2d] border-2 border-[#ff2d2d] rounded-md font-medium text-base transition-colors duration-300 hover:bg-[#ff2d2d] hover:text-white"
               >
                 Logout
               </button>
@@ -187,7 +135,7 @@ export default function Navbar() {
           ) : (
             <Link
               to="/login"
-              style={{ ...loginButtonStyle, width: "100%", textAlign: "center" }}
+              className="w-full text-center px-4 py-2 bg-transparent text-[#ff2d2d] border-2 border-[#ff2d2d] rounded-md font-medium text-base transition-colors duration-300 hover:bg-[#ff2d2d] hover:text-white"
               onClick={() => setIsMenuOpen(false)}
             >
               Login
@@ -195,58 +143,6 @@ export default function Navbar() {
           )}
         </div>
       )}
-
-      <style>
-        {`
-          @media (max-width: 768px) {
-            .desktop-nav {
-              display: none !important;
-            }
-            
-            .mobile-menu-btn {
-              display: block !important;
-            }
-            
-            .welcome-text {
-              display: none;
-            }
-          }
-          
-          @media (min-width: 769px) {
-            .mobile-nav {
-              display: none !important;
-            }
-            
-            .mobile-menu-btn {
-              display: none !important;
-            }
-          }
-        `}
-      </style>
-    </nav>
+    </nav> 
   );
 }
-
-const navLinkStyle = {
-  color: "#fff",
-  textDecoration: "none",
-  fontWeight: "500",
-  fontSize: "16px",
-  cursor: "pointer",
-  display: "inline-block",
-  overflow: "hidden",
-  transition: "all 0.3s ease",
-};
-
-const loginButtonStyle = {
-  padding: "8px 16px",
-  backgroundColor: "transparent",
-  color: "#ff2d2d",
-  border: "2px solid #ff2d2d",
-  borderRadius: "6px",
-  textDecoration: "none",
-  fontWeight: "500",
-  fontSize: "16px",
-  transition: "all 0.3s",
-  cursor: "pointer",
-};

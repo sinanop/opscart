@@ -1,7 +1,6 @@
-
-
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import api from "../api/axios";
 import { toast } from "react-toastify";
 
 export default function Cart() {
@@ -10,60 +9,63 @@ export default function Cart() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const loggedInUser = JSON.parse(localStorage.getItem("loggedInUser")); 
-    if (!loggedInUser) {
-      toast.error("Please login first.");
-      navigate("/login");
-      return;
-    }
-    setUser(loggedInUser);
-    const storedCart = JSON.parse(localStorage.getItem(`cart_${loggedInUser.id}`)) || [];
-    const cartWithQty = storedCart.map((item) => ({
-      ...item,
-      quantity: item.quantity || 1,
-    }));
-    setCart(cartWithQty);
-
-    // ✅ Listen for "cartUpdated" event to show the popup message
-    const handleCartUpdated = (e) => {
-      if (e.detail && e.detail.message) {
-        toast.success(e.detail.message);
-      }
-    };
-    window.addEventListener("cartUpdated", handleCartUpdated);
-
-    return () => {
-      window.removeEventListener("cartUpdated", handleCartUpdated);
-    };
+    fetchCart();
   }, [navigate]);
 
-  const updateCart = (updatedCart) => {
-    setCart(updatedCart);
-    if (user) {
-      localStorage.setItem(`cart_${user.id}`, JSON.stringify(updatedCart));
+  const fetchCart = async () => {
+    try {
+      const { data } = await api.get('/cart');
+      
+      if (data && data.products) {
+        const mappedCart = data.products
+          .filter(item => item.productId)
+          .map(item => ({
+            ...item.productId,
+            _id: item.productId._id,
+            id: item.productId._id,
+            quantity: item.quantity
+          }));
+        setCart(mappedCart);
+      } else {
+        setCart([]);
+      }
+    } catch (error) {
+      console.error("Error fetching cart", error);
+
+      setCart([]);
     }
   };
 
-  const removeFromCart = (id) => {
-    const updatedCart = cart.filter((item) => item.id !== id);
-    updateCart(updatedCart);
-    toast.info("Item removed from cart.");
+  const removeFromCart = async (id) => {
+    try {
+      await api.delete(`/cart/${id}`);
+      toast.info("Item removed from cart.");
+      fetchCart();
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to remove item");
+    }
+  };
+
+  const updateQuantity = async (id, quantity) => {
+    try {
+      if (quantity < 1) return;
+      await api.put('/cart', { productId: id, quantity });
+      fetchCart();
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to update quantity");
+    }
   };
 
   const increaseQty = (id) => {
-    const updatedCart = cart.map((item) =>
-      item.id === id ? { ...item, quantity: item.quantity + 1 } : item
-    );
-    updateCart(updatedCart);
+    const item = cart.find(i => i.id === id);
+    if (item) updateQuantity(id, item.quantity + 1);
   };
 
   const decreaseQty = (id) => {
-    const updatedCart = cart.map((item) =>
-      item.id === id && item.quantity > 1
-        ? { ...item, quantity: item.quantity - 1 }
-        : item
-    );
-    updateCart(updatedCart);
+    const item = cart.find(i => i.id === id);
+    if (item && item.quantity > 1) updateQuantity(id, item.quantity - 1);
   };
 
   const totalAmount = cart.reduce(
@@ -72,14 +74,14 @@ export default function Cart() {
   );
 
   const handleCheckout = () => {
-    navigate("/payment"); 
+    navigate("/payment");
   };
 
   if (!cart.length) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-black via-gray-900 to-red-950">
         <h2 className="text-center text-3xl font-extrabold tracking-wide text-red-500 drop-shadow-xl">
-          🛒 Your Cart is Empty
+          Your Cart is Empty
         </h2>
       </div>
     );
@@ -89,12 +91,12 @@ export default function Cart() {
     <div className="min-h-screen p-6 flex items-center justify-center bg-gradient-to-br from-black via-gray-900 to-red-950">
       <div className="w-full max-w-6xl">
         <h1 className="text-4xl font-extrabold text-red-500 mb-8 text-center drop-shadow-xl tracking-wide">
-          🛒 Your Cart
+          Your Cart
         </h1>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
           {cart.map((item, index) => (
             <div
-              key={`${item.id}-${index}`} 
+              key={`${item.id}-${index}`}
               className="relative bg-gradient-to-br from-black/90 via-gray-800 to-red-900 border border-red-600 rounded-2xl shadow-2xl p-6 text-white hover:scale-105 transition-transform duration-300"
             >
               <img
@@ -113,14 +115,14 @@ export default function Cart() {
                   onClick={() => decreaseQty(item.id)}
                   className="w-10 h-10 bg-red-700 hover:bg-red-600 rounded-full text-xl font-bold transition-shadow shadow-lg"
                 >
-                  ➖
+                  -
                 </button>
                 <span className="text-xl font-bold">{item.quantity}</span>
                 <button
                   onClick={() => increaseQty(item.id)}
                   className="w-10 h-10 bg-green-700 hover:bg-green-600 rounded-full text-xl font-bold transition-shadow shadow-lg"
                 >
-                  ➕
+                  +
                 </button>
               </div>
               <p className="text-gray-200 mt-2 text-center font-semibold">
@@ -147,7 +149,7 @@ export default function Cart() {
             onClick={handleCheckout}
             className="mt-6 bg-green-600 hover:bg-green-700 px-8 py-3 rounded-xl font-semibold text-xl text-white shadow-lg transition duration-300"
           >
-            ✅ Checkout
+            Checkout
           </button>
         </div>
       </div>

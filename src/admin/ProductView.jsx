@@ -1,6 +1,7 @@
-// src/admin/ProductView.jsx
+
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import api from "../api/axios";
 
 export default function ProductView() {
   const { id } = useParams();
@@ -8,13 +9,16 @@ export default function ProductView() {
   const [product, setProduct] = useState(null);
 
   useEffect(() => {
-    const products = JSON.parse(localStorage.getItem("products")) || [];
-    const foundProduct = products.find((prod) => prod.id.toString() === id);
-    if (foundProduct) {
-      setProduct(foundProduct);
-    } else {
-      setProduct(null);
-    }
+    const fetchProduct = async () => {
+      try {
+        const { data } = await api.get(`/products/${id}`);
+        setProduct(data);
+      } catch (err) {
+        console.error(err);
+        setProduct(null);
+      }
+    };
+    fetchProduct();
   }, [id]);
 
   if (!product) {
@@ -50,3 +54,5 @@ export default function ProductView() {
     </div>
   );
 }
+
+

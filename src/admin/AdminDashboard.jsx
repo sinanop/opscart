@@ -1,8 +1,7 @@
 
-
-
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import api from "../api/axios";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
 
@@ -19,53 +18,96 @@ export default function AdminDashboard() {
   const [carsData, setCarsData] = useState([]);
 
   useEffect(() => {
-    // Fetch users
-    fetch("http://localhost:5000/users")
-      .then((res) => res.json())
-      .then((data) => setTotalUsers(data.length));
+    fetchData();
+    const interval = setInterval(fetchData, 5000); 
 
-    // Fetch products
-    fetch("http://localhost:5000/products")
-      .then((res) => res.json())
-      .then((data) => {
-        setTotalProducts(data.length);
-
-        const brandCount = {};
-        data.forEach((product) => {
-          const brand = product.brand || "Unknown"; // fallback if undefined
-          brandCount[brand] = (brandCount[brand] || 0) + 1;
-        });
-
-        const brandsArray = Object.keys(brandCount).map((brand) => ({
-          name: brand,
-          count: brandCount[brand],
-        }));
-
-        setCarsData(brandsArray);
-      });
-
-    // Fetch orders
-    fetch("http://localhost:5000/orders")
-      .then((res) => res.json())
-      .then((data) => {
-        setTotalOrders(data.length);
-
-        const revenue = data.reduce((sum, order) => sum + Number(order.total || 0), 0);
-        setTotalRevenue(revenue);
-
-        const statusCount = { Placed: 0, Shipped: 0, Delivered: 0 };
-        data.forEach((order) => {
-          const status = order.status || "Placed"; // default fallback
-          statusCount[status] = (statusCount[status] || 0) + 1;
-        });
-
-        setOrdersData([
-          { name: "Placed", value: statusCount.Placed },
-          { name: "Shipped", value: statusCount.Shipped },
-          { name: "Delivered", value: statusCount.Delivered },
-        ]);
-      });
+    return () => clearInterval(interval);
   }, []);
+
+  const fetchData = async () => {
+    try {
+ 
+      const [usersRes, productsRes, ordersRes] = await Promise.all([
+        api.get('/users').catch(e => ({ data: [] })),
+        api.get('/products').catch(e => ({ data: [] })),
+        api.get('/orders').catch(e => ({ data: [] }))
+      ]);
+
+      setTotalUsers(usersRes.data.length || 0);
+      setTotalProducts(productsRes.data.length || 0);
+
+      const orders = ordersRes.data || [];
+      setTotalOrders(orders.length);
+
+      const revenue = orders.reduce((sum, order) => {
+        const status = (order.status || "").toLowerCase();
+        if (status === "shipped" || status === "delivered") {
+          return sum + Number(order.totalAmount || order.total || 0);
+        }
+        return sum;
+      }, 0);
+      setTotalRevenue(revenue);
+
+    
+      const statusCount = {};
+      orders.forEach((order) => {
+      
+        let status = order.status || "Pending";
+        status = status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+
+        statusCount[status] = (statusCount[status] || 0) + 1;
+      });
+
+      const chartData = Object.keys(statusCount).map(key => ({
+        name: key,
+        value: statusCount[key]
+      }));
+      setOrdersData(chartData);
+
+  
+      const carCount = {};
+      orders.forEach((order) => {
+        const items = order.products || order.items || [];
+        items.forEach((item) => {
+          let name = "Unknown";
+          if (item.productId && typeof item.productId === 'object') {
+            name = item.productId.name || item.productId.title || "Unknown";
+          } else if (item.name) {
+            name = item.name;
+          }
+
+          if (name !== "Unknown") {
+            carCount[name] = (carCount[name] || 0) + (item.quantity || 1);
+          }
+        });
+      });
+
+      const carsArray = Object.keys(carCount)
+        .map((name) => ({
+          name: shortenCarName(name),
+          fullName: name,
+          count: carCount[name],
+        }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5);
+
+      setCarsData(carsArray);
+
+    } catch (error) {
+      console.error("Error fetching dashboard data", error);
+    }
+  };
+
+
+  const shortenCarName = (name) => {
+    let words = name.split(" ");
+
+    const brands = ["Toyota", "Hyundai", "Maruti", "Suzuki", "Honda", "Kia", "BMW", "Audi", "Mercedes", "Ford", "Mahindra", "Tata"];
+    words = words.filter((w) => !brands.includes(w));
+
+
+    return words.join(" ") || name;
+  };
 
   const handleLogout = () => {
     localStorage.removeItem("loggedInUser");
@@ -81,7 +123,6 @@ export default function AdminDashboard() {
       <div className="flex-1 p-6 bg-black/95">
         <h1 className="text-2xl font-bold text-orange-400 mb-6">Admin Dashboard</h1>
 
-        {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           <div className="bg-gray-800 rounded-md p-4">
             <p className="text-gray-400 text-sm">Total Users</p>
@@ -101,9 +142,8 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Charts Section */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Orders Pie Chart */}
+
           <div className="bg-gray-800 rounded-md p-4 h-64">
             <h3 className="text-white font-semibold mb-3">Orders by Status</h3>
             <ResponsiveContainer width="100%" height="100%">
@@ -127,16 +167,21 @@ export default function AdminDashboard() {
             </ResponsiveContainer>
           </div>
 
-          {/* Car Brands Bar Chart */}
+
           <div className="bg-gray-800 rounded-md p-4 h-64">
-            <h3 className="text-white font-semibold mb-3">Car Brands</h3>
+            <h3 className="text-white font-semibold mb-3">Most Ordered Cars</h3>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={carsData}
-                margin={{ top: 10, right: 10, left: 0, bottom: 5 }}
+                margin={{ top: 10, right: 10, left: 0, bottom: 20 }}
               >
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" stroke="#ccc" />
+                <XAxis
+                  dataKey="name"
+                  stroke="#ccc"
+                  interval={0}
+                  tick={{ fontSize: 12 }}
+                />
                 <YAxis stroke="#ccc" />
                 <Tooltip />
                 <Legend />
@@ -149,3 +194,5 @@ export default function AdminDashboard() {
     </div>
   );
 }
+
+

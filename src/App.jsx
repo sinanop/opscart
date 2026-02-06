@@ -1,5 +1,5 @@
 
-import React from "react";
+// import React from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
@@ -10,7 +10,8 @@ import ProductDetails from "./pages/ProductDetails";
 import Cart from "./pages/Cart";
 import Payment from "./pages/Payment";
 import Order from "./pages/Order";
-import Wishlist, { WishlistProvider } from "./pages/wishlist";
+import Wishlist, { WishlistProvider } from "./pages/Wishlist";
+import UserProfile from "./pages/UserProfile";
 
 import Login from "./Auth/Login";
 import Register from "./Auth/Register";
@@ -20,9 +21,10 @@ import ManageProducts from "./admin/ManageProducts";
 import ManageOrders from "./admin/ManageOrders";
 import ManageUser from "./admin/ManageUser";
 import AdminPanelLayout from "./admin/AdminPanelLayout";
-import AdminRoute from "./AdminRoute";
+// import AdminRoute from "./AdminRoute";
 import EditProduct from "./admin/EditProduct";
 import ProductView from "./admin/ProductView";
+import OrderDetails from "./admin/OrderDetails";
 
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -34,7 +36,7 @@ function PrivateRoute({ children }) {
 
 function AdminRouteWrapper({ children }) {
   const user = JSON.parse(localStorage.getItem("loggedInUser"));
-  return user && user.isAdmin ? children : <Navigate to="/login" replace />;
+  return user && user.role === 'admin' ? children : <Navigate to="/login" replace />;
 }
 
 export default function App() {
@@ -43,9 +45,9 @@ export default function App() {
 
   return (
     <WishlistProvider>
-      <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+      <div className="flex flex-col min-h-screen">
         {!isAdminPath && <Navbar />}
-        <main style={{ flex: 1 }}>
+        <main className="flex-1">
           <Routes>
             <Route path="/" element={<Navigate to="/home" replace />} />
             <Route path="/home" element={<Home />} />
@@ -57,6 +59,14 @@ export default function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route
+              path="/profile"
+              element={
+                <PrivateRoute>
+                  <UserProfile />
+                </PrivateRoute>
+              }
+            />
+            <Route
               path="/orders"
               element={
                 <PrivateRoute>
@@ -65,7 +75,7 @@ export default function App() {
               }
             />
 
-        
+
             <Route
               path="/admin/dashboard"
               element={
@@ -97,7 +107,7 @@ export default function App() {
               }
             />
             <Route
-              path="/admin/products/view/:id" 
+              path="/admin/products/view/:id"
               element={
                 <AdminRouteWrapper>
                   <AdminPanelLayout>
@@ -112,6 +122,16 @@ export default function App() {
                 <AdminRouteWrapper>
                   <AdminPanelLayout>
                     <ManageOrders />
+                  </AdminPanelLayout>
+                </AdminRouteWrapper>
+              }
+            />
+            <Route
+              path="/admin/orders/:orderId"
+              element={
+                <AdminRouteWrapper>
+                  <AdminPanelLayout>
+                    <OrderDetails />
                   </AdminPanelLayout>
                 </AdminRouteWrapper>
               }
@@ -136,9 +156,9 @@ export default function App() {
           newestOnTop={false}
           closeOnClick
           rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
+          pauseOnFocusLoss={true}
+          draggable={true}
+          pauseOnHover={true}
           theme="dark"
           toastStyle={{
             backgroundColor: "#1f1f1f",
